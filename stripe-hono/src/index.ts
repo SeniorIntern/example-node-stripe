@@ -46,10 +46,6 @@ app.get("/", (c) => {
   return c.html(html);
 });
 
-app.post("/", (c) => {
-  return c.text("test POST request");
-});
-
 app.post("/checkout", async (c) => {
   try {
     const session = await stripe.checkout.sessions.create({
@@ -78,6 +74,51 @@ app.get("/success", (c) => {
 
 app.get("/cancel", (c) => {
   return c.text("Canceled!");
+});
+
+app.post("/webhook", async (c) => {
+  // access raw body of request
+  const rawBody = await c.req.text();
+  const signature = c.req.header("stripe-signature");
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature!,
+      process.env.STRIPE_WEBHOOK_SECRET!,
+    );
+  } catch (error: any) {
+    console.error(`Webhook signature verification failed: ${error?.message}`);
+    throw new HTTPException(400);
+  }
+
+  // Handle the checkout.session.completed event
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    console.log(session);
+
+    // TODO Fulfill the purchase
+    // Update Database with order details
+    // Add credits to customer account
+    // Send confirmation email
+    // Print shipping label
+    // Trigger order fulfillment workflow
+    // Update inventory
+    // Etc.
+  }
+
+  if (event.type === "customer.subscription.updated") {
+    const subscription = event.data.object;
+    console.log(subscription);
+  }
+
+  if (event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object;
+    console.log(subscription);
+  }
+
+  return c.text("success");
 });
 
 const port = 3000;
